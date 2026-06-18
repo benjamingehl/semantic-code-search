@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import ignore from 'ignore';
+import { debugLog } from './debug.ts';
 
 const ignoredDirs = new Set([
   '.git',
@@ -47,9 +48,18 @@ export const walkRepo = (root: string): string[] => {
       const full = join(dir, entry.name);
       const path = relative(root, full);
       if (entry.isDirectory()) {
-        if (!ignoredDirs.has(entry.name) && !matcher.ignores(path)) visit(full);
-      } else if (entry.isFile() && !matcher.ignores(path) && statSync(full).size <= MAX_FILE_BYTES) {
-        files.push(full);
+        if (ignoredDirs.has(entry.name)) continue;
+        if (matcher.ignores(path)) {
+          debugLog('excluded', path);
+          continue;
+        }
+        visit(full);
+      } else if (entry.isFile()) {
+        if (matcher.ignores(path)) {
+          debugLog('excluded', path);
+          continue;
+        }
+        if (statSync(full).size <= MAX_FILE_BYTES) files.push(full);
       }
     }
   };

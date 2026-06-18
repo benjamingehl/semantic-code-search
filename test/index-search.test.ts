@@ -160,6 +160,7 @@ describe('cli', () => {
       EMBED_MODEL: 'fake-model',
       EMBED_DIMENSIONS: String(dim),
       INDEX_DB_PATH: join(workspace, 'cli.db'),
+      DEBUG: '1',
     };
 
     const run = async (args: string[]) => {
@@ -178,6 +179,8 @@ describe('cli', () => {
     const indexed = await run(['index', fixturesDir]);
     expect(indexed.code).toBe(0);
     expect(indexed.stdout).toContain('added 7');
+    expect(indexed.stderr).toContain('[scs] embed request:');
+    expect(indexed.stderr).toContain('tokens');
 
     const searched = await run(['search', 'event attempts delay retry']);
     server.stop(true);

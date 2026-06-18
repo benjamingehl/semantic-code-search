@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import type { Config, Embedder } from './types.ts';
+import { debugLog } from './debug.ts';
 
 export type EmbedRequest = (inputs: string[]) => Promise<number[][]>;
 
@@ -12,6 +13,7 @@ export const openAiEmbedRequest = (config: Config): EmbedRequest => {
       dimensions: config.embedDimensions,
       encoding_format: 'float',
     });
+    debugLog('embed request:', inputs.length, 'inputs,', response.usage?.total_tokens ?? 0, 'tokens');
     return response.data.map((item) => item.embedding as number[]);
   };
 };

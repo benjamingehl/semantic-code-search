@@ -5,6 +5,7 @@ import type { Store, StoredChunk } from './store.ts';
 import { chunkFile, embedTextFor } from './chunker/index.ts';
 import { sha256 } from './hash.ts';
 import { isProbablyBinary, walkRepo } from './walk.ts';
+import { debugLog } from './debug.ts';
 
 export type IndexResult = { added: number; skipped: number; removed: number };
 
@@ -23,6 +24,7 @@ export const indexRepo = async (store: Store, embedder: Embedder, repoPath: stri
     if (isProbablyBinary(content)) continue;
 
     const path = relative(repo, file);
+    debugLog('indexed', path);
     const chunks = await chunkFile(path, content.toString('utf8'));
     const keepHashes = new Set<string>();
 

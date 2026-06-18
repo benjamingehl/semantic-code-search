@@ -3,6 +3,7 @@
   "module": "src/cli.ts",
   "type": "module",
   "private": true,
+  "bin": { "scs": "src/cli.ts" },
   "scripts": {
     "index": "bun src/cli.ts index",
     "search": "bun src/cli.ts search",

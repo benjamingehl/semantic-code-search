@@ -1,3 +1,4 @@
+#!/usr/bin/env bun
 import { parseArgs } from 'node:util';
 import { loadConfig } from './config.ts';
 import { createStore } from './store.ts';
@@ -7,8 +8,8 @@ import { search } from './search.ts';
 import type { SearchHit } from './types.ts';
 
 const usage = `Usage:
-  bun run index <path>
-  bun run search "<query>" [-k N]`;
+  scs index <path>
+  scs search "<query>" [-k N]`;
 
 const formatHit = (hit: SearchHit): string => {
   const header = `${hit.path}:${hit.startLine}  ${hit.symbol}  (distance ${hit.distance.toFixed(4)})`;

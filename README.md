@@ -32,6 +32,20 @@ bun run index <path>            # build/update the index
 bun run search "<query>" [-k N] # search (default k = 20)
 ```
 
+### Install globally
+
+Run `bun link` once from the repo root to register a global `scs` command, then
+use it from any directory:
+
+```bash
+bun link                        # registers `scs` on your PATH
+scs index <path>                # build/update the index
+scs search "<query>" [-k N]     # search (default k = 20)
+```
+
+`scs` operates on the directory you run it from (the index defaults to
+`./code.db`). Run `bun unlink` to remove the global command.
+
 ## Ignoring files
 
 Indexing skips a few build/dependency directories by default (`.git`,

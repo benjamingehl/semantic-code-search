@@ -32,6 +32,14 @@ bun run index <path>            # build/update the index
 bun run search "<query>" [-k N] # search (default k = 20)
 ```
 
+## Ignoring files
+
+Indexing skips a few build/dependency directories by default (`.git`,
+`node_modules`, `dist`, …) and honors the repo's `.gitignore`. Add a
+`.scsignore` at the repo root (same syntax as `.gitignore`) to exclude more
+paths; its patterns are applied on top of `.gitignore`, so a negation such as
+`!keep.gen.ts` can re-include a file `.gitignore` excluded.
+
 ## Test
 
 ```bash

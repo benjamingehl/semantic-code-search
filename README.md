@@ -46,6 +46,74 @@ scs search "<query>" [-k N]     # search (default k = 20)
 `scs` operates on the directory you run it from (the index defaults to
 `./code.db`). Run `bun unlink` to remove the global command.
 
+## MCP server (Claude Code)
+
+Expose `index` and `search` to Claude Code as an MCP server, packaged in Docker so
+there's no host-side Bun install and no macOS SQLite caveat (inside the Linux
+container `bun:sqlite` loads the `sqlite-vec` extension natively).
+
+The server exposes two tools: `search_code` (natural-language query → ranked
+`path:line` hits) and `index_repo` (index/refresh the current project — defaults to
+the project root; an optional path must stay within it, since only that directory is
+mounted into the container).
+
+### 1. Build the image
+
+```bash
+bun run mcp:build               # == docker build -t scs-mcp:local .
+```
+
+### 2. Create `~/.scs.env`
+
+```
+EMBED_API_KEY=sk-...
+EMBED_BASE_URL=https://openrouter.ai/api/v1
+EMBED_MODEL=qwen/qwen3-embedding-8b
+EMBED_DIMENSIONS=768
+```
+
+### 3. Register with Claude Code
+
+The mount is scoped to **only the project Claude is working in**, using the
+`CLAUDE_PROJECT_DIR` variable Claude Code injects into the server's environment. A
+small `sh -c` wrapper expands it for the volume mount:
+
+```bash
+claude mcp add semantic-code-search -- \
+  sh -c 'docker run -i --rm \
+  --env-file "$HOME/.scs.env" \
+  -e INDEX_DB_PATH=/data/code.db \
+  -e CLAUDE_PROJECT_DIR \
+  -v scs-index:/data \
+  -v "$CLAUDE_PROJECT_DIR":"$CLAUDE_PROJECT_DIR":ro \
+  scs-mcp:local'
+```
+
+- `-v scs-index:/data` is a named volume that persists the index across `--rm` runs.
+- `-v "$CLAUDE_PROJECT_DIR":...:ro` mounts **only the current project, read-only, at
+  the same path**, so the container sees nothing else on your machine. `index_repo`
+  with no arguments indexes that project; `search_code` queries the shared index.
+- `-e CLAUDE_PROJECT_DIR` forwards the path into the container so the server can
+  default `index_repo` to it.
+
+Use `--scope user` (added before `--`) to register it once for all projects:
+`claude mcp add --scope user semantic-code-search -- sh -c '...'`.
+
+Then run `/mcp` in Claude Code to confirm it connects, and ask Claude to "index this
+repo" and search it.
+
+### Local development
+
+Run the server directly under Bun (uses your local `INDEX_DB_PATH`, no Docker):
+
+```bash
+bun run mcp
+```
+
+> **Note:** the index is a single shared `code.db`, and search is not yet
+> repo-filtered — indexing multiple repos into one volume returns cross-repo
+> results. Use one volume per repo if that matters.
+
 ## Ignoring files
 
 Indexing skips a few build/dependency directories by default (`.git`,

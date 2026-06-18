@@ -7,6 +7,8 @@
   "scripts": {
     "index": "bun src/cli.ts index",
     "search": "bun src/cli.ts search",
+    "mcp": "bun mcp/server.ts",
+    "mcp:build": "docker build -t scs-mcp:local .",
     "test": "bun test",
     "eslint": "eslint . --fix",
     "prettier": "prettier --write ."
@@ -24,6 +26,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
     "ignore": "^7.0.5",
     "openai": "^6.44.0",
     "sqlite-vec": "^0.1.9",

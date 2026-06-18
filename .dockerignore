@@ -1,0 +1,9 @@
+.git
+node_modules
+code.db
+code.db-shm
+code.db-wal
+plans
+test
+.env
+*.log

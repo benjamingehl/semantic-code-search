@@ -1,3 +1,4 @@
+import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
@@ -33,6 +34,18 @@ const runSearch = async (query: string, k: number): Promise<string> =>
     if (hits.length === 0) return 'No results.';
     return hits.map(formatHit).join('\n\n');
   });
+
+const projectRoot = (): string => resolve(process.env.CLAUDE_PROJECT_DIR ?? process.cwd());
+
+const resolveWithinProject = (requested: string): string => {
+  const root = projectRoot();
+  const target = resolve(root, requested || root);
+  const rel = relative(root, target);
+  if (rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+    throw new Error('index_repo path must stay within the project root.');
+  }
+  return target;
+};
 
 const runIndex = async (path: string): Promise<string> =>
   withStore(async (store) => {
@@ -85,7 +98,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     if (name === 'index_repo') {
-      const path = String(args.path ?? '').trim() || process.env.CLAUDE_PROJECT_DIR || process.cwd();
+      const path = resolveWithinProject(String(args.path ?? '').trim());
       return { content: [{ type: 'text', text: await runIndex(path) }] };
     }
 

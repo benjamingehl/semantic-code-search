@@ -14,7 +14,10 @@ const readPositiveInt = (name: string, raw: string, fallback: number): number =>
 const perRepoDbName = (projectDir: string): string => {
   const resolved = resolve(projectDir);
   const hash = createHash('md5').update(resolved).digest('hex').slice(0, 8);
-  const slug = basename(resolved).replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'repo';
+  const slug =
+    basename(resolved)
+      .replace(/[^a-zA-Z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'repo';
   return `${slug}-${hash}.db`;
 };
 

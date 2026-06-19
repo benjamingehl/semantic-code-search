@@ -3,13 +3,17 @@
   "module": "src/cli.ts",
   "type": "module",
   "private": true,
-  "bin": { "scs": "src/cli.ts" },
+  "bin": {
+    "scs": "src/cli.ts"
+  },
   "scripts": {
     "index": "bun src/cli.ts index",
     "search": "bun src/cli.ts search",
     "mcp": "bun mcp/server.ts",
     "mcp:build": "docker build -t scs-mcp:local .",
     "test": "bun test",
+    "lint": "eslint .",
+    "format:check": "prettier --check .",
     "eslint": "eslint . --fix",
     "prettier": "prettier --write ."
   },

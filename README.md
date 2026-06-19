@@ -19,13 +19,7 @@ Packaged in Docker, registering just two tools:
 - **`index_repo`** — index/refresh the current project.
 - **`search_code`** — natural-language query → ranked `path:line` hits.
 
-**1. Build the Docker image**
-
-```bash
-bun run mcp:build
-```
-
-**2. Create `~/.scs.env`** with your embedding backend:
+**1. Create `~/.scs.env`** with your embedding backend
 
 ```
 EMBED_API_KEY=sk-...
@@ -35,7 +29,7 @@ EMBED_DIMENSIONS=768
 EMBED_TOKEN_BUDGET=5000000
 ```
 
-**3. Register with Claude Code**
+**2. Register with Claude Code**
 
 ```bash
 claude mcp add semantic-code-search -- \
@@ -44,7 +38,7 @@ claude mcp add semantic-code-search -- \
   -e CLAUDE_PROJECT_DIR \
   -v scs-index:/data \
   -v "$CLAUDE_PROJECT_DIR":"$CLAUDE_PROJECT_DIR":ro \
-  scs-mcp:local'
+  ghcr.io/benjamingehl/semantic-code-search:latest'
 ```
 
 - `-v scs-index:/data` is a named volume that persists indexes across `--rm`
@@ -58,6 +52,9 @@ claude mcp add semantic-code-search -- \
 Add `--scope user` to register it once for all projects. Then run
 `/mcp` in Claude Code to confirm it connects, and ask Claude to "index this repo"
 and search it.
+
+_(Prefer to build it yourself? `bun run mcp:build` tags a local image
+`scs-mcp:local` — swap that in for the `ghcr.io/...` reference above.)_
 
 ### As a CLI
 

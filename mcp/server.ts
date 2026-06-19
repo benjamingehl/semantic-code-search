@@ -7,16 +7,14 @@ import { createStore } from '../src/store.ts';
 import { createEmbedder } from '../src/embedder.ts';
 import { indexRepo } from '../src/indexer.ts';
 import { search } from '../src/search.ts';
-import type { SearchHit } from '../src/types.ts';
-
-const formatHit = (hit: SearchHit): string => {
-  const header = `${hit.path}:${hit.startLine}  ${hit.symbol}  (distance ${hit.distance.toFixed(4)})`;
-  const body = hit.code
-    .split('\n')
-    .map((line) => `    ${line}`)
-    .join('\n');
-  return `${header}\n${body}`;
-};
+import {
+  indexOutputSchema,
+  indexPayload,
+  searchOutputSchema,
+  searchPayload,
+  type IndexPayload,
+  type SearchPayload,
+} from '../src/output.ts';
 
 const withStore = async <T>(run: (store: ReturnType<typeof createStore>) => Promise<T>): Promise<T> => {
   const config = loadConfig();
@@ -28,11 +26,10 @@ const withStore = async <T>(run: (store: ReturnType<typeof createStore>) => Prom
   }
 };
 
-const runSearch = async (query: string, k: number): Promise<string> =>
+const runSearch = async (query: string, k: number): Promise<SearchPayload> =>
   withStore(async (store) => {
     const hits = await search(store, createEmbedder(loadConfig()), query, k);
-    if (hits.length === 0) return 'No results.';
-    return hits.map(formatHit).join('\n\n');
+    return searchPayload(query, hits);
   });
 
 const projectRoot = (): string => resolve(process.env.CLAUDE_PROJECT_DIR ?? process.cwd());
@@ -47,16 +44,17 @@ const resolveWithinProject = (requested: string): string => {
   return target;
 };
 
-const runIndex = async (path: string): Promise<string> =>
+const runIndex = async (path: string): Promise<IndexPayload> =>
   withStore(async (store) => {
     const result = await indexRepo(store, createEmbedder(loadConfig()), path);
-    return `Indexed ${path}: added ${result.added}, skipped ${result.skipped}, removed ${result.removed}`;
+    return indexPayload(path, result);
   });
 
 const tools = [
   {
     name: 'search_code',
-    description: 'Semantic code search over the indexed repositories. Returns ranked path:line hits with code.',
+    description:
+      'Semantic code search over the indexed repositories. Returns a JSON object with ranked hits (path, symbol, startLine, endLine, distance, code).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -65,6 +63,7 @@ const tools = [
       },
       required: ['query'],
     },
+    outputSchema: searchOutputSchema,
   },
   {
     name: 'index_repo',
@@ -79,6 +78,7 @@ const tools = [
         },
       },
     },
+    outputSchema: indexOutputSchema,
   },
 ];
 
@@ -94,18 +94,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const query = String(args.query ?? '').trim();
       if (!query) throw new Error('search_code requires a non-empty "query".');
       const k = typeof args.k === 'number' && args.k > 0 ? Math.floor(args.k) : 20;
-      return { content: [{ type: 'text', text: await runSearch(query, k) }] };
+      const payload = await runSearch(query, k);
+      return { content: [{ type: 'text', text: JSON.stringify(payload) }], structuredContent: payload };
     }
 
     if (name === 'index_repo') {
       const path = resolveWithinProject(String(args.path ?? '').trim());
-      return { content: [{ type: 'text', text: await runIndex(path) }] };
+      const payload = await runIndex(path);
+      return { content: [{ type: 'text', text: JSON.stringify(payload) }], structuredContent: payload };
     }
 
     throw new Error(`Unknown tool: ${name}`);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return { content: [{ type: 'text', text: message }], isError: true };
+    return { content: [{ type: 'text', text: JSON.stringify({ error: message }) }], isError: true };
   }
 });
 

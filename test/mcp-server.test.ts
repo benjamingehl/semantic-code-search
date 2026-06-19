@@ -64,35 +64,41 @@ describe('mcp server', () => {
   test('indexes the project then finds a chunk by natural-language query', async () => {
     const indexed = await client.callTool({ name: 'index_repo', arguments: {} });
     expect(indexed.isError).toBeFalsy();
-    expect(textOf(indexed)).toContain('added 1');
+    expect(JSON.parse(textOf(indexed)).added).toBe(1);
+    expect((indexed as { structuredContent: { added: number } }).structuredContent.added).toBe(1);
 
     const searched = await client.callTool({ name: 'search_code', arguments: { query: 'retry webhook delivery' } });
     expect(searched.isError).toBeFalsy();
-    expect(textOf(searched)).toContain('sample.ts:1');
-    expect(textOf(searched)).toContain('retryFailedWebhookDelivery');
+    const payload = JSON.parse(textOf(searched));
+    expect(payload.results[0].path).toBe('sample.ts');
+    expect(payload.results[0].startLine).toBe(1);
+    expect(payload.results[0].symbol).toBe('retryFailedWebhookDelivery');
+    expect((searched as { structuredContent: unknown }).structuredContent).toEqual(payload);
   });
 
   test('search_code reports no results against an empty index', async () => {
     const searched = await client.callTool({ name: 'search_code', arguments: { query: 'anything' } });
     expect(searched.isError).toBeFalsy();
-    expect(textOf(searched)).toBe('No results.');
+    const payload = JSON.parse(textOf(searched));
+    expect(payload.count).toBe(0);
+    expect(payload.results).toEqual([]);
   });
 
   test('search_code rejects an empty query', async () => {
     const searched = await client.callTool({ name: 'search_code', arguments: { query: '  ' } });
     expect(searched.isError).toBe(true);
-    expect(textOf(searched)).toContain('non-empty');
+    expect(JSON.parse(textOf(searched)).error).toContain('non-empty');
   });
 
   test('an unknown tool returns an error', async () => {
     const result = await client.callTool({ name: 'nope', arguments: {} });
     expect(result.isError).toBe(true);
-    expect(textOf(result)).toContain('Unknown tool');
+    expect(JSON.parse(textOf(result)).error).toContain('Unknown tool');
   });
 
   test('index_repo rejects a path outside the project root', async () => {
     const result = await client.callTool({ name: 'index_repo', arguments: { path: dirname(workspace) } });
     expect(result.isError).toBe(true);
-    expect(textOf(result)).toContain('within the project root');
+    expect(JSON.parse(textOf(result)).error).toContain('within the project root');
   });
 });

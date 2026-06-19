@@ -5,27 +5,18 @@ import { createStore } from './store.ts';
 import { createEmbedder } from './embedder.ts';
 import { indexRepo } from './indexer.ts';
 import { search } from './search.ts';
-import type { SearchHit } from './types.ts';
+import { indexPayload, searchPayload } from './output.ts';
 
 const usage = `Usage:
   scs index <path>
   scs search "<query>" [-k N]`;
-
-const formatHit = (hit: SearchHit): string => {
-  const header = `${hit.path}:${hit.startLine}  ${hit.symbol}  (distance ${hit.distance.toFixed(4)})`;
-  const body = hit.code
-    .split('\n')
-    .map((line) => `    ${line}`)
-    .join('\n');
-  return `${header}\n${body}\n`;
-};
 
 const runIndex = async (path: string): Promise<void> => {
   const config = loadConfig();
   const store = createStore(config.indexDbPath, config.embedDimensions, config.embedModel);
   try {
     const result = await indexRepo(store, createEmbedder(config), path);
-    console.log(`Indexed ${path}: added ${result.added}, skipped ${result.skipped}, removed ${result.removed}`);
+    console.log(JSON.stringify(indexPayload(path, result), null, 2));
   } finally {
     store.close();
   }
@@ -36,11 +27,7 @@ const runSearch = async (query: string, k: number): Promise<void> => {
   const store = createStore(config.indexDbPath, config.embedDimensions, config.embedModel);
   try {
     const hits = await search(store, createEmbedder(config), query, k);
-    if (hits.length === 0) {
-      console.log('No results.');
-      return;
-    }
-    console.log(hits.map(formatHit).join('\n'));
+    console.log(JSON.stringify(searchPayload(query, hits), null, 2));
   } finally {
     store.close();
   }
@@ -72,6 +59,7 @@ const main = async (): Promise<void> => {
 };
 
 main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : String(error));
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(JSON.stringify({ error: message }));
   process.exit(1);
 });

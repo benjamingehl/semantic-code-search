@@ -178,7 +178,7 @@ describe('cli', () => {
 
     const indexed = await run(['index', fixturesDir]);
     expect(indexed.code).toBe(0);
-    expect(indexed.stdout).toContain('added 9');
+    expect(JSON.parse(indexed.stdout).added).toBe(9);
     expect(indexed.stderr).toContain('[scs] embed request:');
     expect(indexed.stderr).toContain('tokens');
 
@@ -186,7 +186,10 @@ describe('cli', () => {
     server.stop(true);
 
     expect(searched.code).toBe(0);
-    expect(searched.stdout).toContain('webhooks.ts:1');
-    expect(searched.stdout).toContain('retryFailedWebhookDelivery');
+    const payload = JSON.parse(searched.stdout);
+    expect(payload.query).toBe('event attempts delay retry');
+    expect(payload.results[0].path).toBe('webhooks.ts');
+    expect(payload.results[0].startLine).toBe(1);
+    expect(payload.results[0].symbol).toBe('retryFailedWebhookDelivery');
   });
 });

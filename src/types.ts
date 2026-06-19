@@ -29,5 +29,6 @@ export type Config = {
   embedDocPrefix: string;
   embedQueryPrefix: string;
   embedBatchSize: number;
+  embedTokenBudget: number;
   indexDbPath: string;
 };

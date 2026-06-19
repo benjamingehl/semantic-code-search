@@ -37,6 +37,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
     embedDocPrefix: env.EMBED_DOC_PREFIX ?? '',
     embedQueryPrefix: env.EMBED_QUERY_PREFIX ?? '',
     embedBatchSize: readPositiveInt('EMBED_BATCH_SIZE', env.EMBED_BATCH_SIZE ?? '', 64),
+    embedTokenBudget: readPositiveInt('EMBED_TOKEN_BUDGET', env.EMBED_TOKEN_BUDGET ?? '', 5_000_000),
     indexDbPath: resolveDbPath(env),
   };
   return Object.freeze(config);

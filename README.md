@@ -32,6 +32,7 @@ EMBED_API_KEY=sk-...
 EMBED_BASE_URL=https://openrouter.ai/api/v1
 EMBED_MODEL=qwen/qwen3-embedding-8b
 EMBED_DIMENSIONS=768
+EMBED_TOKEN_BUDGET=5000000
 ```
 
 **3. Register with Claude Code**
@@ -93,17 +94,18 @@ bun run mcp
 
 ## Configuration
 
-| Variable             | Purpose                                                               | Default                        |
-| -------------------- | --------------------------------------------------------------------- | ------------------------------ |
-| `EMBED_BASE_URL`     | OpenAI-compatible endpoint                                            | `https://openrouter.ai/api/v1` |
-| `EMBED_API_KEY`      | API key (`no-key` for local servers)                                  | `no-key`                       |
-| `EMBED_MODEL`        | Model id/slug                                                         | `qwen/qwen3-embedding-8b`      |
-| `EMBED_DIMENSIONS`   | Output dimension (fixed at index creation)                            | `768`                          |
-| `EMBED_DOC_PREFIX`   | Prefix prepended to documents                                         | unset                          |
-| `EMBED_QUERY_PREFIX` | Prefix prepended to queries                                           | unset                          |
-| `EMBED_BATCH_SIZE`   | Documents per embed request                                           | `64`                           |
-| `INDEX_DB_PATH`      | Explicit path to the `.db` file (overrides `INDEX_DB_DIR`)            | `./code.db`                    |
-| `INDEX_DB_DIR`       | Directory holding one `.db` per repo, named from `CLAUDE_PROJECT_DIR` | unset                          |
+| Variable             | Purpose                                                                                                                                          | Default                        |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------ |
+| `EMBED_BASE_URL`     | OpenAI-compatible endpoint                                                                                                                       | `https://openrouter.ai/api/v1` |
+| `EMBED_API_KEY`      | API key (`no-key` for local servers)                                                                                                             | `no-key`                       |
+| `EMBED_MODEL`        | Model id/slug                                                                                                                                    | `qwen/qwen3-embedding-8b`      |
+| `EMBED_DIMENSIONS`   | Output dimension (fixed at index creation)                                                                                                       | `768`                          |
+| `EMBED_DOC_PREFIX`   | Prefix prepended to documents                                                                                                                    | unset                          |
+| `EMBED_QUERY_PREFIX` | Prefix prepended to queries                                                                                                                      | unset                          |
+| `EMBED_BATCH_SIZE`   | Documents per embed request                                                                                                                      | `64`                           |
+| `EMBED_TOKEN_BUDGET` | Max estimated tokens per index run (`chars/4`, checked before any API call); the run aborts without storing anything if the estimate exceeds it. | `5 000 000`                    |
+| `INDEX_DB_PATH`      | Explicit path to the `.db` file (overrides `INDEX_DB_DIR`)                                                                                       | `./code.db`                    |
+| `INDEX_DB_DIR`       | Directory holding one `.db` per repo, named from `CLAUDE_PROJECT_DIR`                                                                            | unset                          |
 
 `EMBED_DIMENSIONS` is recorded in the index when it's first created and validated
 on every open — change it and you'll be told to re-index. Some models expect

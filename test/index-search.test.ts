@@ -30,6 +30,7 @@ const baseConfig = (overrides: Partial<Config> = {}): Config => ({
   embedDocPrefix: '',
   embedQueryPrefix: '',
   embedBatchSize: 2,
+  embedTokenBudget: 5_000_000,
   indexDbPath: join(workspace, 'code.db'),
   ...overrides,
 });
@@ -110,6 +111,50 @@ describe('indexRepo', () => {
     const distances = hits.map((hit) => hit.distance);
     expect(distances).toEqual([...distances].sort((a, b) => a - b));
     store.close();
+  });
+
+  test('an unset token budget indexes the whole repo', async () => {
+    const config = baseConfig();
+    const fake = createFakeEmbedRequest(DIM);
+    const store = createStore(config.indexDbPath, DIM, config.embedModel);
+
+    const result = await indexRepo(store, createEmbedder(config, fake.request), fixturesDir);
+
+    expect(result.added).toBe(9);
+    store.close();
+  });
+
+  test('exceeding the token budget fails before embedding and stores nothing', async () => {
+    const config = baseConfig({ embedTokenBudget: 1 });
+    const fake = createFakeEmbedRequest(DIM);
+    const store = createStore(config.indexDbPath, DIM, config.embedModel);
+    const embedder = createEmbedder(config, fake.request);
+
+    await expect(indexRepo(store, embedder, fixturesDir)).rejects.toThrow(/EMBED_TOKEN_BUDGET=1/);
+
+    expect(fake.inputs).toHaveLength(0);
+    expect(await search(store, embedder, 'retry', 5)).toHaveLength(0);
+    store.close();
+  });
+
+  test('a budget above the estimate indexes the whole repo', async () => {
+    const config = baseConfig({ embedTokenBudget: 1_000_000 });
+    const fake = createFakeEmbedRequest(DIM);
+    const store = createStore(config.indexDbPath, DIM, config.embedModel);
+
+    const result = await indexRepo(store, createEmbedder(config, fake.request), fixturesDir);
+
+    expect(result.added).toBe(9);
+    store.close();
+  });
+
+  test('embedDocs enforces the budget before issuing any request', async () => {
+    const config = baseConfig({ embedTokenBudget: 1 });
+    const fake = createFakeEmbedRequest(DIM);
+    const embedder = createEmbedder(config, fake.request);
+
+    await expect(embedder.embedDocs(['x'.repeat(100)])).rejects.toThrow(/EMBED_TOKEN_BUDGET=1/);
+    expect(fake.inputs).toHaveLength(0);
   });
 
   test('document and query prefixes reach the embedder', async () => {

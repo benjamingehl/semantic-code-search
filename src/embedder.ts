@@ -18,9 +18,19 @@ export const openAiEmbedRequest = (config: Config): EmbedRequest => {
   };
 };
 
+export const estimateTokens = (texts: string[]): number =>
+  texts.reduce((total, text) => total + Math.ceil(text.length / 4), 0);
+
 export const createEmbedder = (config: Config, embedRequest: EmbedRequest = openAiEmbedRequest(config)): Embedder => ({
   embedDocs: async (texts) => {
     const prefixed = texts.map((text) => config.embedDocPrefix + text);
+    const estimated = estimateTokens(prefixed);
+    if (estimated > config.embedTokenBudget) {
+      throw new Error(
+        `estimated ${estimated} embedding tokens exceeds EMBED_TOKEN_BUDGET=${config.embedTokenBudget}; ` +
+          'narrow the repo (.scsignore) or raise the budget',
+      );
+    }
     const vectors: number[][] = [];
     for (let start = 0; start < prefixed.length; start += config.embedBatchSize) {
       vectors.push(...(await embedRequest(prefixed.slice(start, start + config.embedBatchSize))));

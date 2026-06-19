@@ -37,3 +37,18 @@ describe('indexDbPath resolution', () => {
     expect(config.indexDbPath).toBe('./code.db');
   });
 });
+
+describe('embedTokenBudget', () => {
+  test('defaults to a non-zero budget when unset', () => {
+    expect(loadConfig({}).embedTokenBudget).toBe(5_000_000);
+  });
+
+  test('parses a positive value', () => {
+    expect(loadConfig({ EMBED_TOKEN_BUDGET: '50000' }).embedTokenBudget).toBe(50000);
+  });
+
+  test('rejects a negative or non-integer value', () => {
+    expect(() => loadConfig({ EMBED_TOKEN_BUDGET: '-1' })).toThrow(/must be a positive integer/i);
+    expect(() => loadConfig({ EMBED_TOKEN_BUDGET: 'abc' })).toThrow(/must be a positive integer/i);
+  });
+});

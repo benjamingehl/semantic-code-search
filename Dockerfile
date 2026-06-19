@@ -9,6 +9,6 @@ COPY tsconfig.json ./
 COPY src ./src
 COPY mcp ./mcp
 
-ENV INDEX_DB_PATH=/data/code.db
+ENV INDEX_DB_DIR=/data
 
 ENTRYPOINT ["bun", "mcp/server.ts"]

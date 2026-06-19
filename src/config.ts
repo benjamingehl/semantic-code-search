@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { basename, resolve } from 'node:path';
 import type { Config } from './types.ts';
 
 const readPositiveInt = (name: string, raw: string, fallback: number): number => {
@@ -9,6 +11,20 @@ const readPositiveInt = (name: string, raw: string, fallback: number): number =>
   return value;
 };
 
+const perRepoDbName = (projectDir: string): string => {
+  const resolved = resolve(projectDir);
+  const hash = createHash('md5').update(resolved).digest('hex').slice(0, 8);
+  const slug = basename(resolved).replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'repo';
+  return `${slug}-${hash}.db`;
+};
+
+const resolveDbPath = (env: NodeJS.ProcessEnv): string => {
+  if (env.INDEX_DB_PATH) return env.INDEX_DB_PATH;
+  const dir = env.INDEX_DB_DIR;
+  if (dir) return `${dir}/${env.CLAUDE_PROJECT_DIR ? perRepoDbName(env.CLAUDE_PROJECT_DIR) : 'code.db'}`;
+  return './code.db';
+};
+
 export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
   const config: Config = {
     embedBaseUrl: env.EMBED_BASE_URL || 'https://openrouter.ai/api/v1',
@@ -18,7 +34,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
     embedDocPrefix: env.EMBED_DOC_PREFIX ?? '',
     embedQueryPrefix: env.EMBED_QUERY_PREFIX ?? '',
     embedBatchSize: readPositiveInt('EMBED_BATCH_SIZE', env.EMBED_BATCH_SIZE ?? '', 64),
-    indexDbPath: env.INDEX_DB_PATH || './code.db',
+    indexDbPath: resolveDbPath(env),
   };
   return Object.freeze(config);
 };

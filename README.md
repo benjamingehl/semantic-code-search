@@ -20,7 +20,8 @@ bun install
 | `EMBED_DOC_PREFIX` | Prefix prepended to documents | unset |
 | `EMBED_QUERY_PREFIX` | Prefix prepended to queries | unset |
 | `EMBED_BATCH_SIZE` | Documents per embed request | `64` |
-| `INDEX_DB_PATH` | Path to the `.db` file | `./code.db` |
+| `INDEX_DB_PATH` | Explicit path to the `.db` file (overrides `INDEX_DB_DIR`) | `./code.db` |
+| `INDEX_DB_DIR` | Directory holding one `.db` per repo, named from `CLAUDE_PROJECT_DIR` | unset |
 
 The embedding backend is chosen entirely by configuration. Switching from
 OpenRouter to a local `llama-server`/Ollama/LM Studio/vLLM is an env change only.
@@ -82,19 +83,20 @@ small `sh -c` wrapper expands it for the volume mount:
 claude mcp add semantic-code-search -- \
   sh -c 'docker run -i --rm \
   --env-file "$HOME/.scs.env" \
-  -e INDEX_DB_PATH=/data/code.db \
   -e CLAUDE_PROJECT_DIR \
   -v scs-index:/data \
   -v "$CLAUDE_PROJECT_DIR":"$CLAUDE_PROJECT_DIR":ro \
   scs-mcp:local'
 ```
 
-- `-v scs-index:/data` is a named volume that persists the index across `--rm` runs.
+- `-v scs-index:/data` is a named volume that persists indexes across `--rm` runs.
+  Each repo gets its own `<repo>-<hash>.db` inside it (the name is derived from
+  `CLAUDE_PROJECT_DIR`), so search results never leak across projects.
 - `-v "$CLAUDE_PROJECT_DIR":...:ro` mounts **only the current project, read-only, at
   the same path**, so the container sees nothing else on your machine. `index_repo`
-  with no arguments indexes that project; `search_code` queries the shared index.
+  with no arguments indexes that project; `search_code` queries its index.
 - `-e CLAUDE_PROJECT_DIR` forwards the path into the container so the server can
-  default `index_repo` to it.
+  default `index_repo` to it and pick the matching per-repo `.db`.
 
 Use `--scope user` (added before `--`) to register it once for all projects:
 `claude mcp add --scope user semantic-code-search -- sh -c '...'`.
@@ -109,10 +111,6 @@ Run the server directly under Bun (uses your local `INDEX_DB_PATH`, no Docker):
 ```bash
 bun run mcp
 ```
-
-> **Note:** the index is a single shared `code.db`, and search is not yet
-> repo-filtered — indexing multiple repos into one volume returns cross-repo
-> results. Use one volume per repo if that matters.
 
 ## Ignoring files
 

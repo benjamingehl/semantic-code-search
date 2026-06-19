@@ -8,12 +8,13 @@ const fixture = (name: string): string => readFileSync(join(import.meta.dir, 'fi
 const langFixture = (name: string): string => readFileSync(join(import.meta.dir, 'langs', name), 'utf8');
 
 describe('chunkFile', () => {
-  test('emits one chunk per function, arrow const, and class with correct symbol and lines', async () => {
+  test('splits a class into per-method chunks plus a class-header chunk', async () => {
     const chunks = await chunkFile('webhooks.ts', fixture('webhooks.ts'));
 
     expect(chunks.map((chunk) => chunk.symbol)).toEqual([
       'retryFailedWebhookDelivery',
       'formatCurrency',
+      'PaymentProcessor.charge',
       'PaymentProcessor',
     ]);
 
@@ -23,13 +24,18 @@ describe('chunkFile', () => {
     expect(retry.startLine).toBe(1);
     expect(retry.code).toContain('retryFailedWebhookDelivery');
 
-    const paymentProcessor = chunks[2]!;
-    expect(paymentProcessor.code).toContain('charge');
+    const charge = chunks[2]!;
+    expect(charge.code).toContain('charge');
+    expect(charge.code).not.toContain('class PaymentProcessor');
+
+    const header = chunks[3]!;
+    expect(header.code).toContain('class PaymentProcessor');
+    expect(header.code).not.toContain('charge');
   });
 
-  test('emits one chunk per Python def and class', async () => {
+  test('splits a Python class into per-method chunks plus a class-header chunk', async () => {
     const chunks = await chunkFile('users.py', fixture('users.py'));
-    expect(chunks.map((chunk) => chunk.symbol)).toEqual(['load_user_profile', 'SessionStore']);
+    expect(chunks.map((chunk) => chunk.symbol)).toEqual(['load_user_profile', 'SessionStore.save', 'SessionStore']);
     expect(chunks.every((chunk) => chunk.language === 'python')).toBe(true);
   });
 
@@ -41,16 +47,16 @@ describe('chunkFile', () => {
 
   const languageCases: Array<[string, string, string[]]> = [
     ['sample.go', 'go', ['Ledger', 'NewLedger', 'Deposit']],
-    ['sample.rs', 'rust', ['Ledger', 'Currency', 'Account', 'Ledger', 'new_ledger']],
-    ['sample.java', 'java', ['Ledger', 'Account']],
+    ['sample.rs', 'rust', ['Ledger', 'Currency', 'Account', 'Ledger.deposit', 'Ledger', 'new_ledger']],
+    ['sample.java', 'java', ['Ledger.Ledger', 'Ledger.deposit', 'Ledger', 'Account']],
     ['sample.c', 'c', ['Ledger', 'deposit', 'main']],
     ['sample.cpp', 'cpp', ['Ledger', 'Ledger::deposit', 'main']],
-    ['sample.cs', 'csharp', ['Ledger', 'IAccount']],
-    ['sample.rb', 'ruby', ['Payments', 'new_ledger']],
-    ['sample.php', 'php', ['Ledger', 'newLedger']],
-    ['sample.kt', 'kotlin', ['Ledger', 'newLedger']],
-    ['sample.swift', 'swift', ['Ledger', 'newLedger']],
-    ['sample.scala', 'scala', ['Ledger', 'Payments']],
+    ['sample.cs', 'csharp', ['Ledger.Ledger', 'Ledger.Deposit', 'Ledger', 'IAccount']],
+    ['sample.rb', 'ruby', ['Ledger.initialize', 'Ledger.deposit', 'Ledger', 'new_ledger']],
+    ['sample.php', 'php', ['Ledger.deposit', 'Ledger', 'newLedger']],
+    ['sample.kt', 'kotlin', ['Ledger.deposit', 'Ledger', 'newLedger']],
+    ['sample.swift', 'swift', ['Ledger.deposit', 'Ledger', 'newLedger']],
+    ['sample.scala', 'scala', ['Ledger.deposit', 'Ledger', 'Payments.newLedger', 'Payments']],
     ['sample.sh', 'bash', ['deposit', 'new_ledger']],
   ];
 
@@ -58,6 +64,18 @@ describe('chunkFile', () => {
     const chunks = await chunkFile(file, langFixture(file));
     expect(chunks.map((chunk) => chunk.symbol)).toEqual(symbols);
     expect(chunks.every((chunk) => chunk.language === language)).toBe(true);
+  });
+
+  test('keeps a class field block in its own header chunk, separate from methods', async () => {
+    const chunks = await chunkFile('sample.kt', langFixture('sample.kt'));
+
+    const header = chunks.find((chunk) => chunk.symbol === 'Ledger')!;
+    expect(header.code).toContain('var balance');
+    expect(header.code).not.toContain('fun deposit');
+
+    const method = chunks.find((chunk) => chunk.symbol === 'Ledger.deposit')!;
+    expect(method.code).toContain('fun deposit');
+    expect(method.code).not.toContain('var balance');
   });
 
   test('a file with no recognized units becomes a single whole-file chunk', async () => {

@@ -5,18 +5,36 @@ import { getParser, languageForPath } from './grammars.ts';
 import { definitionSymbol } from './queries.ts';
 
 type Node = Parser.SyntaxNode;
+type Ctx = { path: string; language: string; lines: string[] };
 
 const MAX_CHUNK_CHARS = 8000;
 const LINES_PER_WINDOW = 80;
 
+const typeContainerTypes = new Set([
+  'class',
+  'class_declaration',
+  'abstract_class_declaration',
+  'class_definition',
+  'class_specifier',
+  'impl_item',
+  'object_declaration',
+  'object_definition',
+]);
+
+const transparentContainerTypes = new Set(['module', 'mod_item', 'namespace_definition']);
+
 export const embedTextFor = (chunk: Chunk): string => `// ${chunk.path}\n${chunk.code}`;
 
-const toChunk = (node: Node, symbol: string, path: string, language: string): Chunk => ({
+const qualify = (prefix: string, symbol: string): string => (prefix ? `${prefix}.${symbol}` : symbol);
+
+const hasCode = (text: string): boolean => text.replace(/[\s{}()[\];,]/g, '').replace(/end/g, '') !== '';
+
+const toChunk = (node: Node, symbol: string, ctx: Ctx): Chunk => ({
   symbol,
   startLine: node.startPosition.row + 1,
   endLine: node.endPosition.row + 1,
-  language,
-  path,
+  language: ctx.language,
+  path: ctx.path,
   code: node.text,
 });
 
@@ -29,14 +47,61 @@ const wholeFileChunk = (path: string, source: string, language: string): Chunk =
   code: source,
 });
 
-const collectDefinitions = (node: Node, path: string, language: string, out: Chunk[]): void => {
+const leftoverChunks = (container: Node, qualified: string, members: Chunk[], ctx: Ctx): Chunk[] => {
+  const end = container.endPosition.row + 1;
+  const memberRanges = members.map((member) => [member.startLine, member.endLine]).sort((a, b) => a[0]! - b[0]!);
+
+  const chunks: Chunk[] = [];
+  const emitChunk = (from: number, to: number): void => {
+    const code = ctx.lines.slice(from - 1, to).join('\n');
+    if (!hasCode(code)) return;
+    chunks.push({
+      symbol: chunks.length === 0 ? qualified : `${qualified}#fields${chunks.length}`,
+      startLine: from,
+      endLine: to,
+      language: ctx.language,
+      path: ctx.path,
+      code,
+    });
+  };
+
+  let cursor = container.startPosition.row + 1;
+  for (const [memberStart, memberEnd] of memberRanges) {
+    if (memberStart! > cursor) emitChunk(cursor, memberStart! - 1);
+    cursor = Math.max(cursor, memberEnd! + 1);
+  }
+  if (cursor <= end) emitChunk(cursor, end);
+
+  return chunks;
+};
+
+const collectDefinitions = (node: Node, prefix: string, out: Chunk[], ctx: Ctx): void => {
   for (const child of node.namedChildren) {
     const symbol = definitionSymbol(child);
-    if (symbol !== null) {
-      out.push(toChunk(child, symbol, path, language));
-    } else {
-      collectDefinitions(child, path, language, out);
+
+    if (symbol === null) {
+      collectDefinitions(child, prefix, out, ctx);
+      continue;
     }
+
+    const qualified = qualify(prefix, symbol);
+
+    if (transparentContainerTypes.has(child.type)) {
+      const before = out.length;
+      collectDefinitions(child, prefix, out, ctx);
+      if (out.length === before) out.push(toChunk(child, qualified, ctx));
+      continue;
+    }
+
+    if (typeContainerTypes.has(child.type)) {
+      const before = out.length;
+      collectDefinitions(child, qualified, out, ctx);
+      if (out.length === before) out.push(toChunk(child, qualified, ctx));
+      else out.push(...leftoverChunks(child, qualified, out.slice(before), ctx));
+      continue;
+    }
+
+    out.push(toChunk(child, qualified, ctx));
   }
 };
 
@@ -66,7 +131,7 @@ export const chunkFile = async (path: string, source: string): Promise<Chunk[]> 
   const tree = parser.parse(source);
 
   const definitions: Chunk[] = [];
-  collectDefinitions(tree.rootNode, path, language, definitions);
+  collectDefinitions(tree.rootNode, '', definitions, { path, language, lines: source.split('\n') });
 
   if (definitions.length === 0) return [wholeFileChunk(path, source, language)];
 

@@ -48,10 +48,10 @@ describe('indexRepo', () => {
 
     const result = await indexRepo(store, createEmbedder(config, fake.request), fixturesDir);
 
-    // 3 (webhooks.ts) + 2 (users.py) + 1 (settings.json) + 1 (broken.ts)
-    expect(result.added).toBe(7);
+    // 4 (webhooks.ts) + 3 (users.py) + 1 (settings.json) + 1 (broken.ts)
+    expect(result.added).toBe(9);
     expect(result.removed).toBe(0);
-    expect(fake.inputs).toHaveLength(7);
+    expect(fake.inputs).toHaveLength(9);
     expect(fake.inputs.every((text) => text.startsWith('// '))).toBe(true);
     store.close();
   });
@@ -178,7 +178,7 @@ describe('cli', () => {
 
     const indexed = await run(['index', fixturesDir]);
     expect(indexed.code).toBe(0);
-    expect(indexed.stdout).toContain('added 7');
+    expect(indexed.stdout).toContain('added 9');
     expect(indexed.stderr).toContain('[scs] embed request:');
     expect(indexed.stderr).toContain('tokens');
 

@@ -33,6 +33,9 @@ const extensionToLanguage: Record<string, string> = {
   '.sc': 'scala',
   '.sh': 'bash',
   '.bash': 'bash',
+  '.md': 'markdown',
+  '.markdown': 'markdown',
+  '.pdf': 'pdf',
 };
 
 const grammarFiles: Record<string, string> = {

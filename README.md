@@ -4,6 +4,8 @@ A really simple MCP/CLI based semantic code search. Use with any OpenAI compatib
 
 Indexes a repo locally into a single file. Chunks code along definition
 boundaries (functions, classes, and so on) with tree-sitter, across 16 languages.
+Markdown (`.md`) is chunked by heading section and text-based PDFs (`.pdf`) are
+chunked into merged paragraphs, so docs are searchable alongside code.
 
 Point it at a local endpoint (`llama-server`, Ollama, LM Studio) and nothing
 leaves the machine. Or use a hosted provider. It's an env var either way.
@@ -122,11 +124,13 @@ task prefixes (e.g. `search_document: ` / `search_query: `); set them via
 | `openai`                    | Client for the OpenAI-compatible `/v1/embeddings` endpoint       |
 | `@modelcontextprotocol/sdk` | Exposes `index_repo` / `search_code` as MCP tools                |
 | `ignore`                    | Applies `.gitignore` / `.scsignore` rules during the repo walk   |
+| `unpdf`                     | Extracts text from PDFs (pure JS, no native deps)                |
 
 Runs on Bun with `bun:sqlite` (no native better-sqlite3 addon). AST chunking
 covers 16 grammars: TypeScript/TSX, JavaScript, Python, Go, Rust, Java, C, C++,
-C#, Ruby, PHP, Kotlin, Swift, Scala, Bash. Unknown or unparseable files fall back
-to a single whole-file chunk.
+C#, Ruby, PHP, Kotlin, Swift, Scala, Bash. Markdown is split by heading and
+text-based PDFs by paragraph; other unknown or unparseable files fall back to a
+single whole-file chunk.
 
 ## Architecture
 
@@ -138,8 +142,8 @@ embedder against the stored vectors.
 ```mermaid
 flowchart LR
   A[indexRepo] --> B[walkRepo<br/>.gitignore + .scsignore<br/>skip binary / large]
-  B --> C[chunkFile<br/>tree-sitter AST]
-  C --> D[one chunk per definition<br/>oversized split · whole-file fallback]
+  B --> C[chunkFile<br/>tree-sitter AST · markdown headings · PDF paragraphs]
+  C --> D[one chunk per definition / section<br/>oversized split · whole-file fallback]
   D --> E[embedTextFor + SHA-256<br/>skip unchanged hashes]
   E --> F[embedDocs<br/>batched embeddings]
   F --> G[store.insertChunks<br/>chunks + chunk_vecs]

@@ -3,12 +3,12 @@ import { basename } from 'node:path';
 import type { Chunk } from '../types.ts';
 import { getParser, languageForPath } from './grammars.ts';
 import { definitionSymbol } from './queries.ts';
+import { chunkMarkdown, chunkPdf } from './documents.ts';
+import { splitIfOversize } from './split.ts';
+import { isProbablyBinary } from '../walk.ts';
 
 type Node = Parser.SyntaxNode;
 type Ctx = { path: string; language: string; lines: string[] };
-
-const MAX_CHUNK_CHARS = 8000;
-const LINES_PER_WINDOW = 80;
 
 const typeContainerTypes = new Set([
   'class',
@@ -105,24 +105,6 @@ const collectDefinitions = (node: Node, prefix: string, out: Chunk[], ctx: Ctx):
   }
 };
 
-const splitIfOversize = (chunk: Chunk): Chunk[] => {
-  if (chunk.code.length <= MAX_CHUNK_CHARS) return [chunk];
-
-  const lines = chunk.code.split('\n');
-  const windows: Chunk[] = [];
-  for (let offset = 0; offset < lines.length; offset += LINES_PER_WINDOW) {
-    const slice = lines.slice(offset, offset + LINES_PER_WINDOW);
-    windows.push({
-      ...chunk,
-      symbol: `${chunk.symbol}#${windows.length}`,
-      startLine: chunk.startLine + offset,
-      endLine: chunk.startLine + offset + slice.length - 1,
-      code: slice.join('\n'),
-    });
-  }
-  return windows;
-};
-
 export const chunkFile = async (path: string, source: string): Promise<Chunk[]> => {
   const language = languageForPath(path);
   if (language === null) return [wholeFileChunk(path, source, 'text')];
@@ -136,4 +118,12 @@ export const chunkFile = async (path: string, source: string): Promise<Chunk[]> 
   if (definitions.length === 0) return [wholeFileChunk(path, source, language)];
 
   return definitions.flatMap(splitIfOversize);
+};
+
+export const chunkContent = async (path: string, content: Buffer): Promise<Chunk[]> => {
+  const language = languageForPath(path);
+  if (language === 'pdf') return chunkPdf(path, content);
+  if (language === 'markdown') return chunkMarkdown(path, content.toString('utf8'));
+  if (isProbablyBinary(content)) return [];
+  return chunkFile(path, content.toString('utf8'));
 };

@@ -75,34 +75,36 @@ const leftoverChunks = (container: Node, qualified: string, members: Chunk[], ct
   return chunks;
 };
 
-const collectDefinitions = (node: Node, prefix: string, out: Chunk[], ctx: Ctx): void => {
+const collectDefinitions = (node: Node, prefix: string, ctx: Ctx): Chunk[] => {
+  const chunks: Chunk[] = [];
+
   for (const child of node.namedChildren) {
     const symbol = definitionSymbol(child);
 
     if (symbol === null) {
-      collectDefinitions(child, prefix, out, ctx);
+      chunks.push(...collectDefinitions(child, prefix, ctx));
       continue;
     }
 
     const qualified = qualify(prefix, symbol);
 
     if (transparentContainerTypes.has(child.type)) {
-      const before = out.length;
-      collectDefinitions(child, prefix, out, ctx);
-      if (out.length === before) out.push(toChunk(child, qualified, ctx));
+      const inner = collectDefinitions(child, prefix, ctx);
+      chunks.push(...(inner.length === 0 ? [toChunk(child, qualified, ctx)] : inner));
       continue;
     }
 
     if (typeContainerTypes.has(child.type)) {
-      const before = out.length;
-      collectDefinitions(child, qualified, out, ctx);
-      if (out.length === before) out.push(toChunk(child, qualified, ctx));
-      else out.push(...leftoverChunks(child, qualified, out.slice(before), ctx));
+      const members = collectDefinitions(child, qualified, ctx);
+      if (members.length === 0) chunks.push(toChunk(child, qualified, ctx));
+      else chunks.push(...members, ...leftoverChunks(child, qualified, members, ctx));
       continue;
     }
 
-    out.push(toChunk(child, qualified, ctx));
+    chunks.push(toChunk(child, qualified, ctx));
   }
+
+  return chunks;
 };
 
 export const chunkFile = async (path: string, source: string): Promise<Chunk[]> => {
@@ -112,8 +114,7 @@ export const chunkFile = async (path: string, source: string): Promise<Chunk[]> 
   const parser = await getParser(language);
   const tree = parser.parse(source);
 
-  const definitions: Chunk[] = [];
-  collectDefinitions(tree.rootNode, '', definitions, { path, language, lines: source.split('\n') });
+  const definitions = collectDefinitions(tree.rootNode, '', { path, language, lines: source.split('\n') });
 
   if (definitions.length === 0) return [wholeFileChunk(path, source, language)];
 

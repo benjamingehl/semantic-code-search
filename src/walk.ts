@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import ignore from 'ignore';
+import { languageForPath } from './chunker/grammars.ts';
 import { debugLog } from './debug.ts';
 
 const ignoredDirs = new Set([
@@ -19,6 +20,12 @@ const ignoredDirs = new Set([
 ]);
 
 const MAX_FILE_BYTES = 512 * 1024;
+const MAX_DOC_BYTES = 5 * 1024 * 1024;
+
+const sizeLimit = (name: string): number => {
+  const language = languageForPath(name);
+  return language === 'markdown' || language === 'pdf' ? MAX_DOC_BYTES : MAX_FILE_BYTES;
+};
 
 export const isProbablyBinary = (buffer: Buffer): boolean => {
   const length = Math.min(buffer.length, 4096);
@@ -59,7 +66,7 @@ export const walkRepo = (root: string): string[] => {
           debugLog('excluded', path);
           continue;
         }
-        if (statSync(full).size <= MAX_FILE_BYTES) files.push(full);
+        if (statSync(full).size <= sizeLimit(entry.name)) files.push(full);
       }
     }
   };

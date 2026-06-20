@@ -2,9 +2,9 @@ import { readFileSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
 import type { Embedder } from './types.ts';
 import type { Store, StoredChunk } from './store.ts';
-import { chunkFile, embedTextFor } from './chunker/index.ts';
+import { chunkContent, embedTextFor } from './chunker/index.ts';
 import { sha256 } from './hash.ts';
-import { isProbablyBinary, walkRepo } from './walk.ts';
+import { walkRepo } from './walk.ts';
 import { debugLog } from './debug.ts';
 
 export type IndexResult = { added: number; skipped: number; removed: number };
@@ -21,11 +21,9 @@ export const indexRepo = async (store: Store, embedder: Embedder, repoPath: stri
 
   for (const file of files) {
     const content = readFileSync(file);
-    if (isProbablyBinary(content)) continue;
-
     const path = relative(repo, file);
+    const chunks = await chunkContent(path, content);
     debugLog('indexed', path);
-    const chunks = await chunkFile(path, content.toString('utf8'));
     const keepHashes = new Set<string>();
 
     for (const chunk of chunks) {

@@ -1,33 +1,16 @@
-import { existsSync } from 'node:fs';
 import { Database } from 'bun:sqlite';
 import * as sqliteVec from 'sqlite-vec';
 import type { Chunk, SearchHit } from './types.ts';
 
 export type StoredChunk = Chunk & { repo: string; contentHash: string };
 
-const homebrewSqlitePaths = [
-  '/opt/homebrew/opt/sqlite/lib/libsqlite3.dylib',
-  '/usr/local/opt/sqlite/lib/libsqlite3.dylib',
-];
+const defaultSqlitePath = '/opt/homebrew/opt/sqlite/lib/libsqlite3.dylib';
 
-let extensionSupportReady = false;
-
-const enableExtensionSupport = (): void => {
-  if (extensionSupportReady || process.platform !== 'darwin') return;
-  const candidates = process.env.SQLITE_LIB_PATH ? [process.env.SQLITE_LIB_PATH] : homebrewSqlitePaths;
-  const path = candidates.find((candidate) => existsSync(candidate));
-  if (!path) {
-    throw new Error(
-      'macOS system SQLite cannot load extensions. Install one that can (`brew install sqlite`) ' +
-        'or set SQLITE_LIB_PATH to a libsqlite3.dylib built with dynamic extension support.',
-    );
-  }
-  Database.setCustomSQLite(path);
-  extensionSupportReady = true;
-};
+if (process.platform === 'darwin') {
+  Database.setCustomSQLite(process.env.SQLITE_LIB_PATH ?? defaultSqlitePath);
+}
 
 export type Store = {
-  getHashesForPath: (repo: string, path: string) => Set<string>;
   hasHash: (contentHash: string) => boolean;
   insertChunks: (chunks: StoredChunk[], vectors: number[][]) => void;
   pruneFile: (repo: string, path: string, keepHashes: Set<string>) => number;
@@ -54,7 +37,6 @@ const assertDimension = (db: Database, dbPath: string, dim: number, model: strin
 };
 
 export const createStore = (dbPath: string, dim: number, model: string): Store => {
-  enableExtensionSupport();
   const db = new Database(dbPath);
   db.exec('PRAGMA journal_mode = WAL');
   db.loadExtension(sqliteVec.getLoadablePath());
@@ -73,7 +55,6 @@ export const createStore = (dbPath: string, dim: number, model: string): Store =
 
   assertDimension(db, dbPath, dim, model);
 
-  const selectHashesForPath = db.query(`SELECT content_hash FROM chunks WHERE repo = ? AND path = ?`);
   const selectHash = db.query(`SELECT 1 AS one FROM chunks WHERE content_hash = ?`);
   const insertChunkRow = db.query(`
     INSERT INTO chunks(repo, path, symbol, start_line, end_line, language, code, content_hash)
@@ -120,8 +101,6 @@ export const createStore = (dbPath: string, dim: number, model: string): Store =
   });
 
   return {
-    getHashesForPath: (repo, path) =>
-      new Set((selectHashesForPath.all(repo, path) as { content_hash: string }[]).map((r) => r.content_hash)),
     hasHash: (contentHash) => selectHash.get(contentHash) !== null,
     insertChunks: (chunks, vectors) => insertChunks(chunks, vectors),
     pruneFile: (repo, path, keepHashes) => pruneFile(repo, path, keepHashes),

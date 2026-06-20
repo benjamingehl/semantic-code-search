@@ -197,9 +197,11 @@ can re-include a file `.gitignore` excluded.
   brew install sqlite
   ```
 
-  `store.ts` auto-detects the Homebrew SQLite; if yours lives elsewhere, point
-  `SQLITE_LIB_PATH` at a `libsqlite3.dylib` built with dynamic-extension support.
-  Linux loads the `sqlite-vec` extension natively — no setup needed.
+  `store.ts` defaults to the Apple-Silicon Homebrew SQLite
+  (`/opt/homebrew/opt/sqlite/lib/libsqlite3.dylib`); if yours lives elsewhere
+  (Intel Homebrew, a custom build, etc.), point `SQLITE_LIB_PATH` at a
+  `libsqlite3.dylib` built with dynamic-extension support. Linux loads the
+  `sqlite-vec` extension natively — no setup needed.
 
 ### Commands
 

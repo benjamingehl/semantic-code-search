@@ -32,6 +32,7 @@ const baseConfig = (): Config => ({
   embedDocPrefix: '',
   embedQueryPrefix: '',
   embedBatchSize: 2,
+  embedTokenBudget: 5_000_000,
   indexDbPath: join(workspace, 'code.db'),
 });
 

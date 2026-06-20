@@ -65,7 +65,7 @@ describe('mcp server', () => {
     const indexed = await client.callTool({ name: 'index_repo', arguments: {} });
     expect(indexed.isError).toBeFalsy();
     expect(JSON.parse(textOf(indexed)).added).toBe(1);
-    expect((indexed as { structuredContent: { added: number } }).structuredContent.added).toBe(1);
+    expect((indexed as unknown as { structuredContent: { added: number } }).structuredContent.added).toBe(1);
 
     const searched = await client.callTool({ name: 'search_code', arguments: { query: 'retry webhook delivery' } });
     expect(searched.isError).toBeFalsy();

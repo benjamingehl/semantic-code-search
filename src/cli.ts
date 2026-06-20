@@ -1,37 +1,26 @@
 #!/usr/bin/env bun
 import { parseArgs } from 'node:util';
-import { loadConfig } from './config.ts';
-import { createStore } from './store.ts';
 import { createEmbedder } from './embedder.ts';
 import { indexRepo } from './indexer.ts';
 import { search } from './search.ts';
 import { indexPayload, searchPayload } from './output.ts';
+import { errorMessage, withSession } from './session.ts';
 
 const usage = `Usage:
   scs index <path>
   scs search "<query>" [-k N]`;
 
-const runIndex = async (path: string): Promise<void> => {
-  const config = loadConfig();
-  const store = createStore(config.indexDbPath, config.embedDimensions, config.embedModel);
-  try {
+const runIndex = async (path: string): Promise<void> =>
+  withSession(async ({ config, store }) => {
     const result = await indexRepo(store, createEmbedder(config), path);
     console.log(JSON.stringify(indexPayload(path, result), null, 2));
-  } finally {
-    store.close();
-  }
-};
+  });
 
-const runSearch = async (query: string, k: number): Promise<void> => {
-  const config = loadConfig();
-  const store = createStore(config.indexDbPath, config.embedDimensions, config.embedModel);
-  try {
+const runSearch = async (query: string, k: number): Promise<void> =>
+  withSession(async ({ config, store }) => {
     const hits = await search(store, createEmbedder(config), query, k);
     console.log(JSON.stringify(searchPayload(query, hits), null, 2));
-  } finally {
-    store.close();
-  }
-};
+  });
 
 const main = async (): Promise<void> => {
   const [command, ...rest] = process.argv.slice(2);
@@ -59,7 +48,6 @@ const main = async (): Promise<void> => {
 };
 
 main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
-  console.error(JSON.stringify({ error: message }));
+  console.error(JSON.stringify({ error: errorMessage(error) }));
   process.exit(1);
 });

@@ -57,17 +57,21 @@ const grammarFiles: Record<string, string> = {
   bash: 'tree-sitter-bash',
 };
 
-let initialized = false;
-const parserCache = new Map<string, Parser>();
+const parserCache = { initialized: false, parsers: new Map<string, Parser>() };
+
+export const resetParserCache = (): void => {
+  parserCache.initialized = false;
+  parserCache.parsers.clear();
+};
 
 export const languageForPath = (path: string): string | null => extensionToLanguage[extname(path)] ?? null;
 
 export const getParser = async (language: string): Promise<Parser> => {
-  if (!initialized) {
+  if (!parserCache.initialized) {
     await Parser.init();
-    initialized = true;
+    parserCache.initialized = true;
   }
-  const cached = parserCache.get(language);
+  const cached = parserCache.parsers.get(language);
   if (cached) return cached;
 
   const grammar = grammarFiles[language];
@@ -77,6 +81,6 @@ export const getParser = async (language: string): Promise<Parser> => {
   const loaded = await Parser.Language.load(wasmPath);
   const parser = new Parser();
   parser.setLanguage(loaded);
-  parserCache.set(language, parser);
+  parserCache.parsers.set(language, parser);
   return parser;
 };

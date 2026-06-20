@@ -2,11 +2,10 @@ import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { loadConfig } from '../src/config.ts';
-import { createStore } from '../src/store.ts';
 import { createEmbedder } from '../src/embedder.ts';
 import { indexRepo } from '../src/indexer.ts';
 import { search } from '../src/search.ts';
+import { errorMessage, withSession } from '../src/session.ts';
 import {
   indexOutputSchema,
   indexPayload,
@@ -16,19 +15,9 @@ import {
   type SearchPayload,
 } from '../src/output.ts';
 
-const withStore = async <T>(run: (store: ReturnType<typeof createStore>) => Promise<T>): Promise<T> => {
-  const config = loadConfig();
-  const store = createStore(config.indexDbPath, config.embedDimensions, config.embedModel);
-  try {
-    return await run(store);
-  } finally {
-    store.close();
-  }
-};
-
 const runSearch = async (query: string, k: number): Promise<SearchPayload> =>
-  withStore(async (store) => {
-    const hits = await search(store, createEmbedder(loadConfig()), query, k);
+  withSession(async ({ config, store }) => {
+    const hits = await search(store, createEmbedder(config), query, k);
     return searchPayload(query, hits);
   });
 
@@ -45,8 +34,8 @@ const resolveWithinProject = (requested: string): string => {
 };
 
 const runIndex = async (path: string): Promise<IndexPayload> =>
-  withStore(async (store) => {
-    const result = await indexRepo(store, createEmbedder(loadConfig()), path);
+  withSession(async ({ config, store }) => {
+    const result = await indexRepo(store, createEmbedder(config), path);
     return indexPayload(path, result);
   });
 
@@ -106,8 +95,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     throw new Error(`Unknown tool: ${name}`);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return { content: [{ type: 'text', text: JSON.stringify({ error: message }) }], isError: true };
+    return { content: [{ type: 'text', text: JSON.stringify({ error: errorMessage(error) }) }], isError: true };
   }
 });
 

@@ -4,7 +4,7 @@ import type { Chunk } from '../types.ts';
 import { splitIfOversize } from './split.ts';
 
 const MIN_PARAGRAPH_CHARS = 3;
-const MAX_CHUNK_CHARS = 2000;
+const MAX_PROSE_CHUNK_CHARS = 2000;
 
 const headingPattern = /^#{1,6}\s+/;
 
@@ -65,10 +65,10 @@ export const chunkDocText = (path: string, language: string, text: string): Chun
   const paragraphs = text
     .split(/\n\s*\n/)
     .map((paragraph) => paragraph.trim())
-    .flatMap((paragraph) => splitLong(paragraph, MAX_CHUNK_CHARS))
+    .flatMap((paragraph) => splitLong(paragraph, MAX_PROSE_CHUNK_CHARS))
     .filter((paragraph) => paragraph.replace(/\s/g, '').length >= MIN_PARAGRAPH_CHARS);
 
-  return packParagraphs(paragraphs, MAX_CHUNK_CHARS).map((code, index) => ({
+  return packParagraphs(paragraphs, MAX_PROSE_CHUNK_CHARS).map((code, index) => ({
     symbol: `${basename(path)}#${index}`,
     startLine: 1,
     endLine: Math.max(1, code.split('\n').length),

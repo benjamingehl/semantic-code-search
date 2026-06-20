@@ -1,10 +1,10 @@
 import type { Chunk } from '../types.ts';
 
-const MAX_CHUNK_CHARS = 8000;
+const MAX_CODE_CHUNK_CHARS = 8000;
 const LINES_PER_WINDOW = 80;
 
 export const splitIfOversize = (chunk: Chunk): Chunk[] => {
-  if (chunk.code.length <= MAX_CHUNK_CHARS) return [chunk];
+  if (chunk.code.length <= MAX_CODE_CHUNK_CHARS) return [chunk];
 
   const lines = chunk.code.split('\n');
   const windows: Chunk[] = [];

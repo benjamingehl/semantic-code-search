@@ -1,13 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
-import type { Embedder } from './types.ts';
+import type { Embedder, IndexResult } from './types.ts';
 import type { Store, StoredChunk } from './store.ts';
 import { chunkContent, embedTextFor } from './chunker/index.ts';
 import { sha256 } from './hash.ts';
 import { walkRepo } from './walk.ts';
 import { debugLog } from './debug.ts';
-
-export type IndexResult = { added: number; skipped: number; removed: number };
 
 export const indexRepo = async (store: Store, embedder: Embedder, repoPath: string): Promise<IndexResult> => {
   const repo = resolve(repoPath);

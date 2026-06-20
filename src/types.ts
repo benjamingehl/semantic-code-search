@@ -1,3 +1,5 @@
+import { type Static, Type } from '@sinclair/typebox';
+
 export type Embedder = {
   embedDocs: (texts: string[]) => Promise<number[][]>;
   embedQuery: (text: string) => Promise<number[]>;
@@ -12,14 +14,22 @@ export type Chunk = {
   code: string;
 };
 
-export type SearchHit = {
-  path: string;
-  symbol: string;
-  startLine: number;
-  endLine: number;
-  distance: number;
-  code: string;
-};
+export const SearchHitSchema = Type.Object({
+  path: Type.String(),
+  symbol: Type.String(),
+  startLine: Type.Number(),
+  endLine: Type.Number(),
+  distance: Type.Number(),
+  code: Type.String(),
+});
+export type SearchHit = Static<typeof SearchHitSchema>;
+
+export const IndexResultSchema = Type.Object({
+  added: Type.Number(),
+  skipped: Type.Number(),
+  removed: Type.Number(),
+});
+export type IndexResult = Static<typeof IndexResultSchema>;
 
 export type Config = {
   embedBaseUrl: string;

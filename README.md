@@ -125,6 +125,7 @@ task prefixes (e.g. `search_document: ` / `search_query: `); set them via
 | `@modelcontextprotocol/sdk` | Exposes `index_repo` / `search_code` as MCP tools                |
 | `ignore`                    | Applies `.gitignore` / `.scsignore` rules during the repo walk   |
 | `unpdf`                     | Extracts text from PDFs (pure JS, no native deps)                |
+| `@sinclair/typebox`         | Single source for output types + MCP tool JSON Schemas           |
 
 Runs on Bun with `bun:sqlite` (no native better-sqlite3 addon). AST chunking
 covers 16 grammars: TypeScript/TSX, JavaScript, Python, Go, Rust, Java, C, C++,

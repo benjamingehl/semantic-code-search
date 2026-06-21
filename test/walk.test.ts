@@ -99,4 +99,18 @@ describe('walkRepo ignore handling', () => {
     expect(paths.has('app.ts')).toBe(true);
     expect([...paths].some((path) => path.includes('node_modules'))).toBe(false);
   });
+
+  test('excludes sqlite db artifacts even when the db lives inside the indexed root', async () => {
+    writeFile('app.ts', fn('appCode'));
+    writeFile('code.db', 'not actually a sqlite file, just text');
+    writeFile('code.db-wal', '');
+    writeFile('code.db-shm', '');
+
+    const paths = await indexedPaths();
+
+    expect(paths.has('app.ts')).toBe(true);
+    expect(paths.has('code.db')).toBe(false);
+    expect(paths.has('code.db-wal')).toBe(false);
+    expect(paths.has('code.db-shm')).toBe(false);
+  });
 });

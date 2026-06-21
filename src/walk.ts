@@ -4,7 +4,10 @@ import ignore from 'ignore';
 import { languageForPath } from './chunker/grammars.ts';
 import { debugLog } from './debug.ts';
 
-const ignoredDirs = new Set([
+const MAX_FILE_BYTES = 512 * 1024;
+const MAX_DOC_BYTES = 5 * 1024 * 1024;
+
+const builtinIgnorePatterns = [
   '.git',
   'node_modules',
   'dist',
@@ -17,10 +20,11 @@ const ignoredDirs = new Set([
   '.venv',
   '__pycache__',
   '.cache',
-]);
-
-const MAX_FILE_BYTES = 512 * 1024;
-const MAX_DOC_BYTES = 5 * 1024 * 1024;
+  '*.db',
+  '*.db-wal',
+  '*.db-shm',
+  '*.db-journal',
+];
 
 const sizeLimit = (name: string): number => {
   const language = languageForPath(name);
@@ -45,7 +49,7 @@ const readIgnoreFile = (root: string, name: string): string => {
 };
 
 const buildMatcher = (root: string) =>
-  ignore().add(readIgnoreFile(root, '.gitignore')).add(readIgnoreFile(root, '.scsignore'));
+  ignore().add(readIgnoreFile(root, '.gitignore')).add(readIgnoreFile(root, '.scsignore')).add(builtinIgnorePatterns);
 
 export const walkRepo = (root: string): string[] => {
   const matcher = buildMatcher(root);
@@ -54,18 +58,13 @@ export const walkRepo = (root: string): string[] => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const full = join(dir, entry.name);
       const path = relative(root, full);
+      if (matcher.ignores(path)) {
+        debugLog('excluded', path);
+        continue;
+      }
       if (entry.isDirectory()) {
-        if (ignoredDirs.has(entry.name)) continue;
-        if (matcher.ignores(path)) {
-          debugLog('excluded', path);
-          continue;
-        }
         visit(full);
       } else if (entry.isFile()) {
-        if (matcher.ignores(path)) {
-          debugLog('excluded', path);
-          continue;
-        }
         if (statSync(full).size <= sizeLimit(entry.name)) files.push(full);
       }
     }

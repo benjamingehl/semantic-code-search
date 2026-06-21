@@ -12,11 +12,9 @@
     "search": "bun src/cli.ts search",
     "mcp": "bun mcp/server.ts",
     "mcp:build": "docker build -t scs-mcp:local .",
-    "test": "bun test",
-    "lint": "eslint .",
-    "format:check": "prettier --check .",
-    "eslint": "eslint . --fix",
-    "prettier": "prettier --write ."
+    "test": "bun run lint && bun test",
+    "lint": "eslint . && prettier --check .",
+    "lint:fix": "eslint . --fix && prettier --write ."
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

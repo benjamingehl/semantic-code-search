@@ -15,8 +15,8 @@ Run it from the command line, or as an MCP server inside Claude Code.
 
 Packaged in a Docker container, registering just two MCP tools:
 
-- **`index_repo`** — index/refresh the current project.
-- **`search_code`** — natural-language query → ranked `path:line` hits.
+- **`index_project`** — index/refresh the current project (code + `.md`/`.pdf` docs).
+- **`search_index`** — natural-language query → ranked `path:line` hits across code and documents.
 
 **1. Create `~/.scs.env`** with your embedding backend
 
@@ -46,7 +46,7 @@ claude mcp add semantic-code-search -- \
 - `-v "$CLAUDE_PROJECT_DIR":...:ro` mounts **only the current project,
   read-only, at the same path** — the container sees nothing else on your machine.
 - `-e CLAUDE_PROJECT_DIR` forwards the path so the server can default
-  `index_repo` to it and pick the matching per-repo `.db`.
+  `index_project` to it and pick the matching per-repo `.db`.
 
 Add `--scope user` to register it once for all projects. Then run
 `/mcp` in Claude Code to confirm it connects, and ask Claude to "index this repo"
@@ -119,7 +119,7 @@ task prefixes (e.g. `search_document: ` / `search_query: `); set them via
 | `tree-sitter-wasms`         | Pre-compiled grammars (16 language WASMs) loaded at runtime      |
 | `sqlite-vec`                | `vec0` virtual table — stores embeddings, does cosine-KNN search |
 | `openai`                    | Client for the OpenAI-compatible `/v1/embeddings` endpoint       |
-| `@modelcontextprotocol/sdk` | Exposes `index_repo` / `search_code` as MCP tools                |
+| `@modelcontextprotocol/sdk` | Exposes `index_project` / `search_index` as MCP tools            |
 | `ignore`                    | Applies `.gitignore` / `.scsignore` rules during the repo walk   |
 | `unpdf`                     | Extracts text from PDFs (pure JS, no native deps)                |
 | `@sinclair/typebox`         | Single source for output types + MCP tool JSON Schemas           |
@@ -172,7 +172,7 @@ flowchart LR
 | `src/search.ts`           | `search` — query → embed → store KNN                                |
 | `src/config.ts`           | Env parsing; per-repo `.db` naming from `CLAUDE_PROJECT_DIR`        |
 | `src/cli.ts`              | `scs index` / `scs search` entry point                              |
-| `mcp/server.ts`           | MCP server exposing `index_repo` / `search_code`                    |
+| `mcp/server.ts`           | MCP server exposing `index_project` / `search_index`                |
 
 ## Ignoring files
 

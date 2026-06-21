@@ -20,7 +20,8 @@ export const SearchHitSchema = Type.Object({
   startLine: Type.Number(),
   endLine: Type.Number(),
   distance: Type.Number(),
-  code: Type.String(),
+  language: Type.String(),
+  content: Type.String(),
 });
 export type SearchHit = Static<typeof SearchHitSchema>;
 

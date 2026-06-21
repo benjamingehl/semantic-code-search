@@ -33,6 +33,10 @@ afterAll(() => {
 beforeEach(async () => {
   workspace = mkdtempSync(join(tmpdir(), 'scs-mcp-'));
   writeFileSync(join(workspace, 'sample.ts'), 'export const retryFailedWebhookDelivery = () => 42;\n');
+  writeFileSync(
+    join(workspace, 'guide.md'),
+    '# Deployment\n\nRoll out the service to production with zero downtime.\n',
+  );
   transport = new StdioClientTransport({
     command: 'bun',
     args: [join(import.meta.dir, '..', 'mcp', 'server.ts')],
@@ -56,36 +60,51 @@ afterEach(async () => {
 });
 
 describe('mcp server', () => {
-  test('lists the search_code and index_repo tools', async () => {
+  test('lists the search_index and index_project tools', async () => {
     const { tools } = await client.listTools();
-    expect(tools.map((tool) => tool.name).sort()).toEqual(['index_repo', 'search_code']);
+    expect(tools.map((tool) => tool.name).sort()).toEqual(['index_project', 'search_index']);
   });
 
   test('indexes the project then finds a chunk by natural-language query', async () => {
-    const indexed = await client.callTool({ name: 'index_repo', arguments: {} });
+    const indexed = await client.callTool({ name: 'index_project', arguments: {} });
     expect(indexed.isError).toBeFalsy();
-    expect(JSON.parse(textOf(indexed)).added).toBe(1);
-    expect((indexed as unknown as { structuredContent: { added: number } }).structuredContent.added).toBe(1);
+    expect(JSON.parse(textOf(indexed)).added).toBe(2);
+    expect((indexed as unknown as { structuredContent: { added: number } }).structuredContent.added).toBe(2);
 
-    const searched = await client.callTool({ name: 'search_code', arguments: { query: 'retry webhook delivery' } });
+    const searched = await client.callTool({ name: 'search_index', arguments: { query: 'retry webhook delivery' } });
     expect(searched.isError).toBeFalsy();
     const payload = JSON.parse(textOf(searched));
-    expect(payload.results[0].path).toBe('sample.ts');
-    expect(payload.results[0].startLine).toBe(1);
-    expect(payload.results[0].symbol).toBe('retryFailedWebhookDelivery');
+    const hit = payload.results.find((result: { path: string }) => result.path === 'sample.ts');
+    expect(hit.startLine).toBe(1);
+    expect(hit.symbol).toBe('retryFailedWebhookDelivery');
+    expect(hit.language).toBe('typescript');
+    expect(hit.content).toContain('retryFailedWebhookDelivery');
     expect((searched as { structuredContent: unknown }).structuredContent).toEqual(payload);
   });
 
-  test('search_code reports no results against an empty index', async () => {
-    const searched = await client.callTool({ name: 'search_code', arguments: { query: 'anything' } });
+  test('finds a markdown document section labeled as a document, not code', async () => {
+    await client.callTool({ name: 'index_project', arguments: {} });
+
+    const searched = await client.callTool({ name: 'search_index', arguments: { query: 'deploy to production' } });
+    expect(searched.isError).toBeFalsy();
+    const payload = JSON.parse(textOf(searched));
+    const hit = payload.results.find((result: { path: string }) => result.path === 'guide.md');
+    expect(hit.language).toBe('markdown');
+    expect(hit.symbol).toBe('Deployment');
+    expect(hit.content).toContain('zero downtime');
+    expect(hit.code).toBeUndefined();
+  });
+
+  test('search_index reports no results against an empty index', async () => {
+    const searched = await client.callTool({ name: 'search_index', arguments: { query: 'anything' } });
     expect(searched.isError).toBeFalsy();
     const payload = JSON.parse(textOf(searched));
     expect(payload.count).toBe(0);
     expect(payload.results).toEqual([]);
   });
 
-  test('search_code rejects an empty query', async () => {
-    const searched = await client.callTool({ name: 'search_code', arguments: { query: '  ' } });
+  test('search_index rejects an empty query', async () => {
+    const searched = await client.callTool({ name: 'search_index', arguments: { query: '  ' } });
     expect(searched.isError).toBe(true);
     expect(JSON.parse(textOf(searched)).error).toContain('non-empty');
   });
@@ -96,8 +115,8 @@ describe('mcp server', () => {
     expect(JSON.parse(textOf(result)).error).toContain('Unknown tool');
   });
 
-  test('index_repo rejects a path outside the project root', async () => {
-    const result = await client.callTool({ name: 'index_repo', arguments: { path: dirname(workspace) } });
+  test('index_project rejects a path outside the project root', async () => {
+    const result = await client.callTool({ name: 'index_project', arguments: { path: dirname(workspace) } });
     expect(result.isError).toBe(true);
     expect(JSON.parse(textOf(result)).error).toContain('within the project root');
   });

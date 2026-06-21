@@ -65,7 +65,7 @@ export const createStore = (dbPath: string, dim: number, model: string): Store =
   const deleteVecById = db.query(`DELETE FROM chunk_vecs WHERE rowid = ?`);
   const knn = db.query(`
     SELECT c.path AS path, c.symbol AS symbol, c.start_line AS startLine, c.end_line AS endLine,
-           c.code AS code, v.distance AS distance
+           c.language AS language, c.code AS content, v.distance AS distance
     FROM chunk_vecs v
     JOIN chunks c ON c.id = v.rowid
     WHERE v.embedding MATCH ? AND k = ?

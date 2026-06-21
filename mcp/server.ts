@@ -28,7 +28,7 @@ const resolveWithinProject = (requested: string): string => {
   const target = resolve(root, requested || root);
   const rel = relative(root, target);
   if (rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
-    throw new Error('index_repo path must stay within the project root.');
+    throw new Error('index_project path must stay within the project root.');
   }
   return target;
 };
@@ -41,13 +41,13 @@ const runIndex = async (path: string): Promise<IndexPayload> =>
 
 const tools = [
   {
-    name: 'search_code',
+    name: 'search_index',
     description:
-      'Semantic code search over the indexed repositories. Returns a JSON object with ranked hits (path, symbol, startLine, endLine, distance, code).',
+      'Semantic search over the indexed project — source code and documents. Returns a JSON object with ranked hits (path, symbol, startLine, endLine, distance, language, content).',
     inputSchema: {
       type: 'object',
       properties: {
-        query: { type: 'string', description: 'Natural-language description of the code to find.' },
+        query: { type: 'string', description: 'Natural-language description of the code or documentation to find.' },
         k: { type: 'number', description: 'Maximum number of results to return (default 20).' },
       },
       required: ['query'],
@@ -55,9 +55,9 @@ const tools = [
     outputSchema: searchOutputSchema,
   },
   {
-    name: 'index_repo',
+    name: 'index_project',
     description:
-      'Index or refresh the current project so its code becomes searchable. Defaults to the project root; an optional path must stay within it (paths outside the project are not accessible).',
+      'Index or refresh the current project so its source code and documents become searchable.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -79,15 +79,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args = {} } = request.params;
 
   try {
-    if (name === 'search_code') {
+    if (name === 'search_index') {
       const query = String(args.query ?? '').trim();
-      if (!query) throw new Error('search_code requires a non-empty "query".');
+      if (!query) throw new Error('search_index requires a non-empty "query".');
       const k = typeof args.k === 'number' && args.k > 0 ? Math.floor(args.k) : 20;
       const payload = await runSearch(query, k);
       return { content: [{ type: 'text', text: JSON.stringify(payload) }], structuredContent: payload };
     }
 
-    if (name === 'index_repo') {
+    if (name === 'index_project') {
       const path = resolveWithinProject(String(args.path ?? '').trim());
       const payload = await runIndex(path);
       return { content: [{ type: 'text', text: JSON.stringify(payload) }], structuredContent: payload };

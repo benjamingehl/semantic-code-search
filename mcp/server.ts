@@ -50,7 +50,7 @@ const tools = [
   {
     name: 'refresh_index',
     description:
-      'Re-index the current working directory (code and docs: .md, .pdf) so recent edits become searchable. Incremental and safe to re-run: skips unchanged files, prunes deleted code. Call when a semantic_search result\'s lastIndexedAt predates your changes. Returns added/skipped/removed counts and the new lastIndexedAt.',
+      "Re-index the current working directory (code and docs: .md, .pdf) so recent edits become searchable. Incremental and safe to re-run: skips unchanged files, prunes deleted code. Call when a semantic_search result's lastIndexedAt predates your changes. Returns added/skipped/removed counts and the new lastIndexedAt.",
     inputSchema: { type: 'object', properties: {} },
     outputSchema: refreshOutputSchema,
     annotations: {

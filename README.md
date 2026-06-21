@@ -1,22 +1,19 @@
 # Semantic Code Search
 
-A really simple MCP/CLI based semantic code search. Use with any OpenAI compatible endpoint for embedding generation.
+A super simple MCP/CLI based semantic code/document search tool. Use with any OpenAI compatible endpoint for embedding generation.
 
 Indexes a repo locally into a single file. Chunks code along definition
 boundaries (functions, classes, and so on) with tree-sitter, across 16 languages.
 Markdown (`.md`) is chunked by heading section and text-based PDFs (`.pdf`) are
 chunked into merged paragraphs, so docs are searchable alongside code.
 
-Point it at a local endpoint (`llama-server`, Ollama, LM Studio) and nothing
-leaves the machine. Or use a hosted provider. It's an env var either way.
-
-Run it from the command line, or as an MCP server, e.g. inside Claude Code.
+Run it from the command line, or as an MCP server inside Claude Code.
 
 ## Getting started
 
 ### As an MCP server
 
-Packaged in Docker, registering just two tools:
+Packaged in a Docker container, registering just two MCP tools:
 
 - **`index_repo`** — index/refresh the current project.
 - **`search_code`** — natural-language query → ranked `path:line` hits.

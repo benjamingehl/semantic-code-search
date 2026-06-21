@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -60,20 +60,24 @@ afterEach(async () => {
 });
 
 describe('mcp server', () => {
-  test('lists the search_index and index_project tools', async () => {
+  test('lists the semantic_search and refresh_index tools', async () => {
     const { tools } = await client.listTools();
-    expect(tools.map((tool) => tool.name).sort()).toEqual(['index_project', 'search_index']);
+    expect(tools.map((tool) => tool.name).sort()).toEqual(['refresh_index', 'semantic_search']);
+
+    const searchTool = tools.find((tool) => tool.name === 'semantic_search')!;
+    expect(searchTool.annotations?.readOnlyHint).toBe(false);
+
+    const refreshTool = tools.find((tool) => tool.name === 'refresh_index')!;
+    expect(refreshTool.annotations?.readOnlyHint).toBe(false);
+    expect(refreshTool.annotations?.idempotentHint).toBe(true);
   });
 
-  test('indexes the project then finds a chunk by natural-language query', async () => {
-    const indexed = await client.callTool({ name: 'index_project', arguments: {} });
-    expect(indexed.isError).toBeFalsy();
-    expect(JSON.parse(textOf(indexed)).added).toBe(2);
-    expect((indexed as unknown as { structuredContent: { added: number } }).structuredContent.added).toBe(2);
-
-    const searched = await client.callTool({ name: 'search_index', arguments: { query: 'retry webhook delivery' } });
+  test('semantic_search auto-builds the index on first use and finds a chunk', async () => {
+    const searched = await client.callTool({ name: 'semantic_search', arguments: { query: 'retry webhook delivery' } });
     expect(searched.isError).toBeFalsy();
     const payload = JSON.parse(textOf(searched));
+    expect(typeof payload.lastIndexedAt).toBe('string');
+    expect(payload.lastIndexedAt.length).toBeGreaterThan(0);
     const hit = payload.results.find((result: { path: string }) => result.path === 'sample.ts');
     expect(hit.startLine).toBe(1);
     expect(hit.symbol).toBe('retryFailedWebhookDelivery');
@@ -83,9 +87,7 @@ describe('mcp server', () => {
   });
 
   test('finds a markdown document section labeled as a document, not code', async () => {
-    await client.callTool({ name: 'index_project', arguments: {} });
-
-    const searched = await client.callTool({ name: 'search_index', arguments: { query: 'deploy to production' } });
+    const searched = await client.callTool({ name: 'semantic_search', arguments: { query: 'deploy to production' } });
     expect(searched.isError).toBeFalsy();
     const payload = JSON.parse(textOf(searched));
     const hit = payload.results.find((result: { path: string }) => result.path === 'guide.md');
@@ -95,16 +97,34 @@ describe('mcp server', () => {
     expect(hit.code).toBeUndefined();
   });
 
-  test('search_index reports no results against an empty index', async () => {
-    const searched = await client.callTool({ name: 'search_index', arguments: { query: 'anything' } });
+  test('refresh_index reports added counts and advances on re-run', async () => {
+    const first = await client.callTool({ name: 'refresh_index', arguments: {} });
+    expect(first.isError).toBeFalsy();
+    const firstPayload = JSON.parse(textOf(first));
+    expect(firstPayload.added).toBe(2);
+    expect(typeof firstPayload.lastIndexedAt).toBe('string');
+
+    const second = await client.callTool({ name: 'refresh_index', arguments: {} });
+    expect(second.isError).toBeFalsy();
+    const secondPayload = JSON.parse(textOf(second));
+    expect(secondPayload.added).toBe(0);
+    expect(secondPayload.skipped).toBe(2);
+  });
+
+  test('semantic_search reports no results when the project has nothing to index', async () => {
+    rmSync(join(workspace, 'sample.ts'));
+    rmSync(join(workspace, 'guide.md'));
+
+    const searched = await client.callTool({ name: 'semantic_search', arguments: { query: 'anything' } });
     expect(searched.isError).toBeFalsy();
     const payload = JSON.parse(textOf(searched));
     expect(payload.count).toBe(0);
     expect(payload.results).toEqual([]);
+    expect(typeof payload.lastIndexedAt).toBe('string');
   });
 
-  test('search_index rejects an empty query', async () => {
-    const searched = await client.callTool({ name: 'search_index', arguments: { query: '  ' } });
+  test('semantic_search rejects an empty query', async () => {
+    const searched = await client.callTool({ name: 'semantic_search', arguments: { query: '  ' } });
     expect(searched.isError).toBe(true);
     expect(JSON.parse(textOf(searched)).error).toContain('non-empty');
   });
@@ -113,11 +133,5 @@ describe('mcp server', () => {
     const result = await client.callTool({ name: 'nope', arguments: {} });
     expect(result.isError).toBe(true);
     expect(JSON.parse(textOf(result)).error).toContain('Unknown tool');
-  });
-
-  test('index_project rejects a path outside the project root', async () => {
-    const result = await client.callTool({ name: 'index_project', arguments: { path: dirname(workspace) } });
-    expect(result.isError).toBe(true);
-    expect(JSON.parse(textOf(result)).error).toContain('within the project root');
   });
 });

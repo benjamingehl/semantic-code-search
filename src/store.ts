@@ -15,6 +15,8 @@ export type Store = {
   insertChunks: (chunks: StoredChunk[], vectors: number[][]) => void;
   pruneFile: (repo: string, path: string, keepHashes: Set<string>) => number;
   search: (queryVector: number[], k: number) => SearchHit[];
+  getLastIndexedAt: () => string | null;
+  setLastIndexedAt: (iso: string) => void;
   close: () => void;
 };
 
@@ -70,6 +72,10 @@ export const createStore = (dbPath: string, dim: number, model: string): Store =
     JOIN chunks c ON c.id = v.rowid
     WHERE v.embedding MATCH ? AND k = ?
     ORDER BY v.distance`);
+  const selectLastIndexedAt = db.query(`SELECT value FROM meta WHERE key = 'lastIndexedAt'`);
+  const upsertLastIndexedAt = db.query(
+    `INSERT INTO meta(key, value) VALUES ('lastIndexedAt', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+  );
 
   const insertChunks = db.transaction((chunks: StoredChunk[], vectors: number[][]): void => {
     chunks.forEach((chunk, i) => {
@@ -105,6 +111,8 @@ export const createStore = (dbPath: string, dim: number, model: string): Store =
     insertChunks: (chunks, vectors) => insertChunks(chunks, vectors),
     pruneFile: (repo, path, keepHashes) => pruneFile(repo, path, keepHashes),
     search: (queryVector, k) => knn.all(toBlob(queryVector), k) as SearchHit[],
+    getLastIndexedAt: () => (selectLastIndexedAt.get() as { value: string } | null)?.value ?? null,
+    setLastIndexedAt: (iso) => upsertLastIndexedAt.run(iso),
     close: () => db.close(),
   };
 };

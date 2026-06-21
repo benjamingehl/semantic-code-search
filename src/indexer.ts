@@ -46,5 +46,7 @@ export const indexRepo = async (store: Store, embedder: Embedder, repoPath: stri
     store.insertChunks(pendingChunks, vectors);
   }
 
+  store.setLastIndexedAt(new Date().toISOString());
+
   return { added: pendingChunks.length, skipped, removed };
 };

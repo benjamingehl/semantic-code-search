@@ -19,7 +19,7 @@ const runIndex = async (path: string): Promise<void> =>
 const runSearch = async (query: string, k: number): Promise<void> =>
   withSession(async ({ config, store }) => {
     const hits = await search(store, createEmbedder(config), query, k);
-    console.log(JSON.stringify(searchPayload(query, hits), null, 2));
+    console.log(JSON.stringify(searchPayload(query, hits, store.getLastIndexedAt()), null, 2));
   });
 
 const main = async (): Promise<void> => {

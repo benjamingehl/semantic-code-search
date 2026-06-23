@@ -1,6 +1,6 @@
 # Semantic Code Search
 
-A super simple MCP/CLI based semantic code/document search tool. Use with any OpenAI compatible endpoint for embedding generation.
+A super simple and experimental MCP/CLI based semantic code/document search tool. Use with any OpenAI compatible endpoint for embedding generation.
 
 Indexes a repo locally into a single file. Chunks code along definition
 boundaries (functions, classes, and so on) with tree-sitter, across 16 languages.
@@ -110,8 +110,7 @@ task prefixes (e.g. `search_document: ` / `search_query: `); set them via
 
 ## Codebase & dependencies
 
-~780 lines of TypeScript across 14 files (`src/` + `mcp/`), plus 5 test suites
-(~545 lines). One `.db` file per repo; no daemon, no external index.
+~1000 lines of TypeScript across a bit more than a dozen files. One `.db` file per repo; no daemon, no external index.
 
 | Package                     | Role in this project                                             |
 | --------------------------- | ---------------------------------------------------------------- |
